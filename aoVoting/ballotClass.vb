@@ -1,7 +1,7 @@
 
 Imports Contensive.BaseClasses
 
-Namespace Contensive.Addons.aoVoting
+Namespace Contensive.Addons.aoElection
     '
     Public Class ballotClass
         '
@@ -18,20 +18,24 @@ Namespace Contensive.Addons.aoVoting
                 Dim compatibilityElectionID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(addonArgument_ElectionId))
                 Dim candidateID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnRow))
                 Dim ballotCount As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnBallotCount))
-                Dim pastPositionID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnPastPositionID))
+                Dim pastOfficeID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnPastOfficeID))
                 Dim writeIn As String = CP.Doc.Var(rnWriteIn)
                 Dim errMsg As String = ""
                 Dim electionName As String = ""
                 Dim isOpen As Boolean = False
                 Dim adminHint As String = ""
                 Dim presetList As String = ""
-                Dim positionID As Integer = 0
+                Dim OfficeID As Integer = 0
                 Dim criteria As String = ""
                 Dim instanceId As String = CP.Doc.GetText("instanceid")
                 Dim electionKey As String
                 Dim listLink As String = ""
                 Dim rightNow As Date = Date.Now
                 Dim sqlRightNow As String = CP.Db.EncodeSQLDate(rightNow)
+                Dim votingInstructions As String = ""
+                Dim listRows As String = ""
+                Dim writeInLine As String = ""
+                Dim thankyoucopy As String = ""
                 '
                 ' electionId is stored in a site property, referenced by the instance Id
                 '   admin hint editor can change site property
@@ -64,6 +68,7 @@ Namespace Contensive.Addons.aoVoting
                     Call csElection.SetField("name", "New Election")
                     Call csElection.SetField("dateStart", Now)
                     Call csElection.SetField("dateEnd", Now.AddMonths(1))
+                    Call csElection.SetField("thankyoucopy", "<p>Thank you for participating.</p>")
                     Call CP.Site.SetProperty(electionKey, electionID)
                 End If
                 If Not csElection.OK() Then
@@ -71,6 +76,7 @@ Namespace Contensive.Addons.aoVoting
                     adminHint &= "<p>The election selected for this add-on could not be found. Turn on advanced edit and click the add-on options to check or update the election selected.</p>"
                 Else
                     electionName = csElection.GetText("name")
+                    thankyoucopy = csElection.GetText("thankyoucopy")
                     isOpen = isElectionOpen(CP, csElection)
                     '
                     '   if election is current continue otherwise block the balott to non admins
@@ -80,54 +86,57 @@ Namespace Contensive.Addons.aoVoting
                     Else
                         If ((candidateID = 0) And (writeIn = "")) And (CP.Doc.Var(rnButton) = btnContinue) Then
                             ballotCount -= 1
-                            errMsg = "Please select a candidate for this positions or include a write-in."
+                            errMsg = "Please select a candidate for this Offices or include a write-in."
                         ElseIf (CP.Doc.Var(rnButton) = btnContinue) Then
-                            processVote(CP, electionID, pastPositionID, candidateID, writeIn)
+                            processVote(CP, electionID, pastOfficeID, candidateID, writeIn)
                         End If
                         '
-                        '   the ballot will loop through all the candidates for each position until there are none left
+                        '   the ballot will loop through all the candidates for each Office until there are none left
                         '       when there are none left - the thank you message is displayed
                         '
-                        positionID = getPositionID(CP, electionID, ballotCount)
-                        criteria = "(electionID=" & electionID & ") and (positionID=" & positionID & ")"
+                        Call getOfficeID(CP, electionID, ballotCount, OfficeID, votingInstructions)
+                        criteria = "(electionID=" & electionID & ") and (OfficeID=" & OfficeID & ")"
                         '
-                        If positionID = 0 Then
-                            returnHtml &= CP.Content.GetCopy("Ballot Complete - " & electionName, "Thank you for participating in " & electionName & ".")
+                        If OfficeID = 0 Then
+                            returnHtml &= thankyoucopy
                         Else
-                            cs.Open("Candidates", criteria)
+                            cs.Open("Election Candidates", criteria)
                             If cs.OK Then
                                 '
                                 If errMsg <> "" Then
-                                    returnHtml &= "<p class=""ccError"">" & errMsg & "</p>"
+                                    listRows &= "<p class=""ccError"">" & errMsg & "</p>"
                                 End If
-                                '
-                                returnHtml &= "<p class=""positionTitle"">Position: " & cs.GetText("positionID") & "</p>"
-                                returnHtml &= "<table class=""candidateTable"">"
-                                returnHtml &= "<tr>"
-                                returnHtml &= "<td class=""rowHeader"">&nbsp;</td>"
-                                returnHtml &= "<td class=""rowHeader"">&nbsp;</td>"
-                                returnHtml &= "<td class=""rowHeader"">Name</td>"
-                                returnHtml &= "<td class=""rowHeader"">Company</td>"
-                                returnHtml &= "</tr>"
                                 Do While (cs.OK)
-                                    csCandidate.Open("People", "ID=" & cs.GetInteger("memberID"))
-                                    If csCandidate.OK Then
-                                        returnHtml &= getCandidateRow(CP, csCandidate, cs)
-                                    End If
-                                    csCandidate.Close()
+                                    listRows &= "<div class=""ebRow"">" & getCandidateRow(CP, cs) & "</div>"
                                     cs.GoNext()
                                 Loop
                                 If CP.User.IsEditingAnything() Then
-                                    returnHtml &= "<tr><td colspan=""4"">" & cs.GetAddLink("electionid=" & electionID) & "&nbsp;Add a candidate to this election</td></tr>"
+                                    listRows &= "<div class=""ebRow"">" & cs.GetAddLink("electionid=" & electionID) & "&nbsp;Add a candidate to this election</div>"
                                 End If
-                                returnHtml &= "</table>"
+                                'returnHtml &= "</table>"
                             End If
                             cs.Close()
                             '
-                            returnHtml &= CP.Html.div("Write-In:", , "formCaption")
-                            returnHtml &= CP.Html.div(CP.Html.InputText(rnWriteIn, "", , 25).Replace("<input ", "<input onClick=""clearVote('" & rnRow & "');"" "))
+                            writeInLine = "" _
+                                & "<div class=""ebRow"">" _
+                                & CP.Html.div(CP.Html.RadioBox(rnRow, "-1", "") & "" _
+                                & "&nbsp;Write-In Candidate:" _
+                                & CP.Html.InputText(rnWriteIn, "", , 25).Replace("<input ", "<input onClick=""clearVote('" & rnRow & "');"" ")) & "" _
+                                & "</div>"
                             '
-                            returnHtml &= CP.Html.div(CP.Html.Hidden(rnPastPositionID, positionID) & CP.Html.Hidden(rnBallotCount, ballotCount + 1) & CP.Html.Button(rnButton, btnContinue), , "buttonContainer")
+                            returnHtml = "" _
+                                & "<p class=""ebOffice"">" & CP.Content.GetRecordName("election offices", OfficeID) & "</p>" _
+                                & ""
+                            If votingInstructions <> "" Then
+                                returnHtml &= "<div class=""ebInstructions"">" & votingInstructions & "</div>"
+                            End If
+                            returnHtml &= "" _
+                                & "<div class=""ebList"">" _
+                                & listRows _
+                                & writeInLine _
+                                & "</div>" _
+                                & ""
+                            returnHtml &= CP.Html.div(CP.Html.Hidden(rnPastOfficeID, OfficeID) & CP.Html.Hidden(rnBallotCount, ballotCount + 1) & CP.Html.Button(rnButton, btnContinue), , "ebButtonContainer")
                             returnHtml = CP.Html.Form(returnHtml)
                         End If
                         If CP.User.IsAdmin() And (Not isOpen) Then
@@ -138,21 +147,29 @@ Namespace Contensive.Addons.aoVoting
                 csElection.Close()
                 '
                 If CP.User.IsAdmin Then
+                    Dim editList As String = ""
                     Dim s = CP.Html.SelectContent(rnElectionID, electionID, "elections", "((dateStart is null)or(dateStart<" & sqlRightNow & "))and((dateEnd is null)or(dateend>" & sqlRightNow & "))", "Election created for this page", , "ebSelectElection")
                     s = CP.Html.Form(s, , , "ebSelectElectionForm")
-                    adminHint &= CP.Html.div("Select an election " & s)
+                    editList &= CP.Html.li("Select an election " & s, , "ebHelp")
+                    editList &= CP.Html.li("Edit this election " & CP.Content.GetEditLink("elections", electionID, False, "", True), , "ebHelp")
                     '
-                    adminHint &= CP.Html.div("Edit this election " & CP.Content.GetEditLink("elections", electionID, False, "", True))
+                    'adminHint &= CP.Html.div("Select an election " & s)
                     '
-                    listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("voting positions") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Voting Positions"" title=""Add or Modify Voting Positions"" align=""absmiddle""></a>"
-                    adminHint &= CP.Html.div("Add or Modify Voting Positions" & listLink)
+                    'adminHint &= CP.Html.div("Edit this election " & CP.Content.GetEditLink("elections", electionID, False, "", True))
                     '
-                    listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("candidates") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Candidates"" title=""Add or Modify Candidates"" align=""absmiddle""></a>"
-                    adminHint &= CP.Html.div("Add or Modify Candidates" & listLink)
+                    listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("election offices") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Election Offices"" title=""Add or Modify Election Offices"" align=""absmiddle""></a>"
+                    editList &= CP.Html.li("Add or Modify Election Offices" & listLink, , "ebHelp")
+                    'adminHint &= CP.Html.div("Add or Modify Election Office" & listLink)
+                    '
+                    listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("election candidates") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Candidates"" title=""Add or Modify Candidates"" align=""absmiddle""></a>"
+                    editList &= CP.Html.li("Add or Modify Candidates" & listLink, , "ebHelp")
+                    'adminHint &= CP.Html.div("Add or Modify Candidates" & listLink)
                     '
                     listLink = "<a href=""" & CP.Site.GetText("adminUrl") & "?addonGuid={BD797028-938B-4E7D-84FE-F42257AEB461}"">Election Reports</a>"
-                    adminHint &= CP.Html.div("View Election Results " & listLink)
+                    editList &= CP.Html.li("View Election Results " & listLink, , "ebHelp")
+                    'adminHint &= CP.Html.div("View Election Results " & listLink)
                     '
+                    adminHint &= CP.Html.ul(editList)
                     adminHint &= adminInstructions
                     returnHtml &= getAdminHint(CP, adminHint)
                     'returnHtml &= CP.Html.adminHint(adminHint)
@@ -166,36 +183,50 @@ Namespace Contensive.Addons.aoVoting
             Return returnHtml
         End Function
         '
-        Private Function getCandidateRow(ByVal CP As CPBaseClass, ByVal cs As BaseClasses.CPCSBaseClass, ByVal csCan As BaseClasses.CPCSBaseClass) As String
+        '
+        '
+        Private Function getCandidateRow(ByVal CP As CPBaseClass, ByVal cs As BaseClasses.CPCSBaseClass) As String
+            Dim returnHtml As String = ""
             Try
-                Dim stream As String = ""
                 Dim scriptString As String = ""
-                '
                 Dim recID As Integer = cs.GetInteger("ID")
                 Dim bioID As String = "bio_" & recID
                 Dim linkID As String = "link_" & recID
-                Dim nameString As String = cs.GetText("FirstName") & " " & cs.GetText("LastName")
-                Dim imgString As String = cs.GetText("ImageFileName")
+                Dim nameString As String = cs.GetText("Name")
+                Dim thumbnailFilename As String = cs.GetText("thumbnailFilename")
+                Dim imageFilename As String = ""
                 Dim bioString As String = ""
                 Dim lightBox As String = ""
                 Dim copy As String = ""
-                Dim editLink As String = csCan.GetEditLink()
+                Dim editLink As String = cs.GetEditLink()
+                Dim thumbnailImg As String = ""
+                Dim imageImg As String = ""
                 '
-                If imgString <> "" Then
-                    imgString = "<img class=""photo"" src=""" & CP.Site.FilePath & imgString & """>"
+                If thumbnailFilename <> "" Then
+                    thumbnailImg = "<img class=""ebPhoto"" src=""" & CP.Site.FilePath & thumbnailFilename & """>"
                 Else
-                    imgString = "<img class=""photo"" src=""/voting/thumbnailDefault.png"">"
+                    thumbnailImg = "<img class=""ebPhoto"" src=""/voting/thumbnailDefault.png"">"
                 End If
-                bioString = imgString
+                imageFilename = cs.GetText("imageFilename")
+                If imageFilename = "" Then
+                    imageImg = thumbnailImg
+                Else
+                    imageImg = "<img class=""ebPhoto"" src=""" & CP.Site.FilePath & imageFilename & """>"
+                End If
+                bioString = imageImg
+                '
+                returnHtml = editLink & CP.Html.RadioBox(rnRow, cs.GetText("ID"), "") & "&nbsp;" & "<span class=""ebName"">" & nameString & "</span>"
                 bioString &= CP.Html.h1(nameString)
                 '
                 copy = cs.GetText("Title")
                 If copy <> "" Then
+                    returnHtml &= ", " & copy
                     bioString &= CP.Html.p(copy, , "title")
                 End If
                 '
                 copy = cs.GetText("company")
                 If copy <> "" Then
+                    returnHtml &= ", " & copy
                     bioString &= CP.Html.p(copy, , "company")
                 End If
                 '
@@ -204,19 +235,23 @@ Namespace Contensive.Addons.aoVoting
                     bioString &= CP.Html.p("Phone: " & copy, , "phone")
                 End If
                 '
-                copy = cs.GetText("NotesFilename")
+                copy = cs.GetText("bio")
                 If copy <> "" Then
                     bioString &= CP.Html.div(copy, , "notes")
                 End If
                 '
-                lightBox = CP.Html.div(CP.Html.div(bioString, , "bioContainer", bioID), , "bioWrapper")
+                lightBox = CP.Html.div(CP.Html.div(bioString, , "ebBioContainer", bioID), , "ebBioWrapper")
+                returnHtml &= "&nbsp;" _
+                    & lightBox _
+                    & "(<a id=""" & linkID & """ href=""#" & bioID & """ title=""" & nameString & " Bio"">View</a>)" _
+                    & ""
                 '
-                stream = stream & "<tr>"
-                stream = stream & "<td class=""radioContainer"">" & CP.Html.RadioBox(rnRow, csCan.GetText("ID"), "") & lightBox & editLink & "</td>"
-                stream = stream & "<td class=""imgContainer"">" & imgString & "</td>"
-                stream = stream & "<td class=""nameContainer""><a id=""" & linkID & """ href=""#" & bioID & """ title=""" & nameString & " Bio"">" & nameString & "</a></td>"
-                stream = stream & "<td class=""companyContainer"">" & cs.GetText("Company") & "</td>"
-                stream = stream & "</tr>"
+                'returnHtml = returnHtml & "<tr>"
+                'returnHtml = returnHtml & "<td class=""radioContainer"">" & CP.Html.RadioBox(rnRow, cs.GetText("ID"), "") & lightBox & editLink & "</td>"
+                'returnHtml = returnHtml & "<td class=""imgContainer"">" & thumbnailImg & "</td>"
+                'returnHtml = returnHtml & "<td class=""nameContainer""><a id=""" & linkID & """ href=""#" & bioID & """ title=""" & nameString & " Bio"">" & nameString & "</a></td>"
+                'returnHtml = returnHtml & "<td class=""companyContainer"">" & cs.GetText("Company") & "</td>"
+                'returnHtml = returnHtml & "</tr>"
                 '
                 scriptString &= vbCrLf & "$('#" & linkID & "').fancybox({" & vbCrLf
                 scriptString &= "'titleShow':false," & vbCrLf
@@ -228,58 +263,64 @@ Namespace Contensive.Addons.aoVoting
                 '
                 CP.Doc.AddHeadJavascript("$(document).ready(function() {" & scriptString & "});")
                 '
-                Return stream
             Catch ex As Exception
                 CP.Site.ErrorReport(ex.Message)
             End Try
+            Return returnHtml
         End Function
 
-        Private Function getPositionID(ByVal CP As CPBaseClass, ByVal electionID As Integer, ByVal ballotCount As Integer) As Integer
+        Private Sub getOfficeID(ByVal CP As CPBaseClass, ByVal electionID As Integer, ByVal ballotCount As Integer, ByRef officeId As Integer, ByRef votingInstructions As String)
             Try
                 Dim cs As BaseClasses.CPCSBaseClass = CP.CSNew
-                Dim positionID As Integer = 0
                 Dim loopCount As Integer = 0
                 Dim sql As String = ""
                 Dim criteria As String = "(1=1)"
                 '
                 '   this will allow users to come back and complete their ballot at a later point
-                '       showing them only the positions left to vote on
+                '       showing them only the Offices left to vote on
                 '
-                sql = "select votingPositionID from votes where memberID=" & CP.User.Id & " and electionID=" & electionID
+                sql = "select electionOfficeID from electionVotes where memberID=" & CP.User.Id & " and electionID=" & electionID
                 cs.OpenSQL(sql)
                 Do While cs.OK()
-                    criteria += " and (positionID<>" & cs.GetInteger("votingPositionID") & ")"
+                    criteria += " and (OfficeID<>" & cs.GetInteger("electionOfficeID") & ")"
                     cs.GoNext()
                 Loop
                 cs.Close()
                 '
-                '   add the criteria into the select for the next position
+                '   add the criteria into the select for the next Office
                 '
-                sql = "SELECT DISTINCT positionID FROM candidates WHERE (electionID=" & electionID & ") and " & criteria & " ORDER BY positionID"
+                sql = "SELECT DISTINCT OfficeID FROM electionCandidates WHERE (electionID=" & electionID & ") and " & criteria & " ORDER BY OfficeID"
                 cs.OpenSQL(sql)
                 If cs.OK Then
-                    positionID = cs.GetInteger("positionID")
+                    officeId = cs.GetInteger("OfficeID")
                 End If
                 cs.Close()
                 '
-                Return positionID
+                If officeId <> 0 Then
+                    If cs.Open("election offices", "id=" & officeId) Then
+                        votingInstructions = cs.GetText("votingInstructions")
+                    End If
+                    Call cs.Close()
+
+                End If
+                '
             Catch ex As Exception
                 CP.Site.ErrorReport(ex.Message)
             End Try
-        End Function
+        End Sub
         '
-        Private Sub processVote(ByVal CP As CPBaseClass, ByVal electionID As Integer, ByVal positionID As Integer, ByVal candidateID As Integer, ByVal writeIn As String)
+        Private Sub processVote(ByVal CP As CPBaseClass, ByVal electionID As Integer, ByVal officeID As Integer, ByVal candidateID As Integer, ByVal writeIn As String)
             Try
                 Dim cs As BaseClasses.CPCSBaseClass = CP.CSNew
                 '
-                cs.Open("Votes", "(electionID=" & electionID & ") and (votingPositionID=" & positionID & ") and (memberID=" & CP.User.Id & ")")
+                cs.Open("Election Votes", "(electionID=" & electionID & ") and (electionOfficeID=" & officeID & ") and (memberID=" & CP.User.Id & ")")
                 If Not cs.OK Then
                     cs.Close()
-                    cs.Insert("Votes")
+                    cs.Insert("Election Votes")
                 End If
                 If cs.OK Then
                     cs.SetField("electionID", electionID)
-                    cs.SetField("votingPositionID", positionID)
+                    cs.SetField("electionOfficeID", officeID)
                     cs.SetField("candidateID", candidateID)
                     cs.SetField("writeIn", writeIn)
                     cs.SetField("memberID", CP.User.Id)

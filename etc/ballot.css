@@ -1,90 +1,52 @@
 .electionBallot{
 	padding: 10px;
 }
-.positionTitle{
+.electionBallot .ebHelp {
+	line-height: 20px;
+}
+.electionBallot .ebRow {
+	line-height: 30px;
+	margin: 0 0 0 20px;
+}
+.electionBallot .ebName {
+	font-weight: bold;
+}
+.electionBallot .ebInstructions {
+	margin: 20px 0 10px 20px;
+}
+.ebOffice{
 	font-weight:bold;
 	margin:10px 0px 10px 0px;
 }
-.buttonContainer{
+.ebButtonContainer{
 	margin:10px 0px 0px 0px;
 }
-.formCaption{
-	font-weight:bold;
-	margin:10px 0px 0px 0px;
-}
-.rowHeader{
-	font-weight:bold;
-}
-.candidateTable{
-	width:100%;
-	border-spacing:0;
-}
-.bioContainer{
+.ebBioContainer{
 				width:400px;
 }
-.bioContainer h1{
+.ebBioContainer h1{
 				margin:0px 0px 5px 0px
 }
-.bioContainer p{
+.ebBioContainer p{
 				margin:5px 0px 5px 0px
 }
-.bioContainer p.phone{
+.ebBioContainer p.phone{
 				margin:5px 0px 10px 0px
 }
-.bioContainer p.title{
+.ebBioContainer p.title{
 				font-style:italic;
 }
-.bioContainer p.company{
+.ebBioContainer p.company{
 				font-weight:bold;
 }
-.bioContainer img{
+.ebBioContainer img{
 				float:right;
 				margin:10px 10px 10px 10px;
 				width: 80px;
 				height: 80px;
 }
-.bioWrapper{
+.ebBioWrapper{
 				display:none;
 }
-.staffTable{
-				border-spacing:0px;
-				width:100%;
-}
-.radioContainer{
-	text-align:center;
-	vertical-align:middle;
-	border-bottom:1px solid #DEDEDE;
-	padding:5px;
-	margin:0px;
-	width: 30px;
-}
-.imgContainer{
-	text-align:center;
-	vertical-align:middle;
-	border-bottom:1px solid #DEDEDE;
-	padding:5px;
-	margin:0px;
-	width: 90px;
-}
-.imgContainer img{
-	width:80px;
-	height:80px;
-}
-.nameContainer{
-	vertical-align:middle;
-	border-bottom:1px solid #DEDEDE;
-	padding:5px;
-	margin:0px;
-	width: 250px;
-}
-.companyContainer{
-	vertical-align:middle;
-	border-bottom:1px solid #DEDEDE;
-	padding:5px;
-	margin:0px;
-}
-.staffContainer{
-	margin:10px 0px 0px 0px;
-	display:table;
-	width:100%;
+.ebPhoto {
 }

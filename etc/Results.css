@@ -1,0 +1,30 @@
+div.resultContainer {padding:10px;}
+
+div.resultContainer ol, div.resultContainer ul, div.resultContainer li {list-style: none outside none; margin:0; padding:0;}
+
+div.resultContainer li.positionHeader {padding:5px; background-color:#567694; color:#FFFFFF; font-weight:bold;}
+
+div.resultContainer .candidateList {
+	border: 1px solid #ddd
+}
+
+div.resultContainer li.round4 {
+	/* border-radius:4px 4px 4px 4px; */
+}
+
+div.resultContainer ul.positionList {margin:10px 0 0 0;}
+
+div.resultContainer ul.formList {margin:10px 0 10px 0;}
+
+div.resultContainer li.buttonRow {margin:5px 0 0 0;}
+
+div.resultContainer li.light {
+	background-color:#FFFFFF; 
+	padding:5px; 
+	/* margin:3px 0 0 0;*/
+	}
+div.resultContainer li.dark {
+	background-color:#E8EEF7; 
+	padding:5px; 
+	/* margin:3px 0 0 0; */
+	}

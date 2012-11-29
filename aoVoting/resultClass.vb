@@ -1,5 +1,7 @@
 
-Namespace Contensive.Addons.aoVoting
+
+
+Namespace Contensive.Addons.aoElection
     '
     Public Class resultClass
         '
@@ -8,44 +10,44 @@ Namespace Contensive.Addons.aoVoting
         Public Overrides Function Execute(ByVal CP As Contensive.BaseClasses.CPBaseClass) As Object
             Dim returnHtml As String = ""
             Try
+                Dim pageBody As String = ""
                 Dim cs As BaseClasses.CPCSBaseClass = CP.CSNew
                 Dim csWI As BaseClasses.CPCSBaseClass = CP.CSNew
                 Dim listHtml As String = ""
                 Dim electionID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnElectionID))
                 Dim sql As String = ""
-                Dim currentPosition As String = ""
-                Dim lastPosition As String = ""
-                Dim nextPosition As String = ""
+                Dim currentOffice As String = ""
+                Dim lastOffice As String = ""
+                Dim nextOffice As String = ""
                 Dim canS As String = ""
                 Dim rowPointer As Integer = 0
                 Dim rowClass As String = ""
-                Dim positionID As Integer = 0
+                Dim officeID As Integer = 0
                 Dim writeIn As String = ""
-                '
-                returnHtml += CP.Content.GetCopy("Instructions - Form Election Results", "Select an election from the menu below to see the results.")
+                Dim page As New adminFramework.formSimpleClass
                 '
                 listHtml = CP.Html.li(CP.Html.SelectContent(rnElectionID, "", cnElections))
                 listHtml += CP.Html.li(CP.Html.Button(rnButton, btnResult), , "buttonRow")
-                returnHtml += CP.Html.ul(listHtml, , "formList")
+                pageBody += CP.Html.ul(listHtml, , "formList")
                 '
                 If electionID <> 0 Then
                     listHtml = ""
                     '
-                    sql = "SELECT m.firstName as fName, m.lastName as lName, p.name as pName, c.id as candidateID, c.positionID as positionID "
-                    sql += "FROM candidates c, votingPositions p, ccMembers m "
-                    sql += "where (c.electionID=" & electionID & ") and (c.positionID=p.ID) and (c.memberID=m.ID) "
-                    sql += "order by p.id"
+                    sql = "SELECT c.Name as Name, p.name as pName, c.id as candidateID, p.id as officeID "
+                    sql += " FROM electionCandidates c, electionOffices p"
+                    sql += " where (c.electionID=" & electionID & ") and (c.officeID=p.ID)"
+                    sql += " order by p.id"
                     cs.OpenSQL(sql)
                     Do While cs.OK()
                         '
-                        '   display position
+                        '   display Office
                         '
-                        currentPosition = cs.GetText("pName")
-                        If currentPosition <> lastPosition Then
-                            listHtml += CP.Html.li(currentPosition, , "positionHeader round4")
-                            lastPosition = currentPosition
+                        currentOffice = cs.GetText("pName")
+                        If currentOffice <> lastOffice Then
+                            listHtml += CP.Html.li(currentOffice, , "positionHeader round4")
+                            lastOffice = currentOffice
                             canS = ""
-                            positionID = cs.GetInteger("positionID")
+                            officeID = cs.GetInteger("officeID")
                         End If
                         '
                         '   alternate row color
@@ -58,26 +60,26 @@ Namespace Contensive.Addons.aoVoting
                         '
                         '   get the candidates
                         '
-                        canS += CP.Html.li(cs.GetText("fName") & " " & cs.GetText("lName") & " - " & getVoteCount(CP, cs.GetInteger("candidateID"), electionID) & " votes", , rowClass & " round4")
+                        canS += CP.Html.li(cs.GetText("Name") & " - " & getVoteCount(CP, cs.GetInteger("candidateID"), electionID) & " votes", , rowClass & " round4")
                         cs.GoNext()
                         rowPointer += 1
                         '
                         If cs.OK() Then
-                            nextPosition = cs.GetText("pName")
+                            nextOffice = cs.GetText("pName")
                         Else
-                            nextPosition = ""
+                            nextOffice = ""
                         End If
                         '
-                        '   check if the position is changing (or cs not ok)
+                        '   check if the office is changing (or cs not ok)
                         '       if so then wrap up the li lists
                         '
-                        If nextPosition <> currentPosition Then
+                        If nextOffice <> currentOffice Then
                             '
                             '   add any write ins
                             '
                             sql = "SELECT distinct writeIn "
-                            sql += "FROM Votes "
-                            sql += "where (candidateID=0) and (electionID=" & electionID & ") and (votingPositionID=" & positionID & ") "
+                            sql += "FROM electionVotes "
+                            sql += "where (candidateID=0) and (electionID=" & electionID & ") and (electionOfficeID=" & officeID & ") "
                             csWI.OpenSQL(sql)
                             Do While csWI.OK()
                                 '
@@ -91,7 +93,7 @@ Namespace Contensive.Addons.aoVoting
                                 '
                                 writeIn = csWI.GetText("writeIn")
                                 '
-                                canS += CP.Html.li(writeIn & " - " & getVoteCountByWriteIn(CP, electionID, writeIn, positionID) & " votes", , rowClass & " round4")
+                                canS += CP.Html.li(writeIn & " - " & getVoteCountByWriteIn(CP, electionID, writeIn, officeID) & " votes", , rowClass & " round4")
                                 '
                                 csWI.GoNext()
                             Loop
@@ -99,7 +101,7 @@ Namespace Contensive.Addons.aoVoting
                             '
                             canS = CP.Html.ul(canS, , "candidateList")
                             listHtml += CP.Html.li(canS)
-                            returnHtml += CP.Html.ul(listHtml, , "positionList")
+                            pageBody += CP.Html.ul(listHtml, , "positionList")
                             canS = ""
                             listHtml = ""
                         End If
@@ -107,8 +109,13 @@ Namespace Contensive.Addons.aoVoting
                     cs.Close()
                 End If
                 '
-                returnHtml = CP.Html.Form(CP.Html.div(returnHtml, , "resultContainer"))
+                pageBody = CP.Html.Form(CP.Html.div(pageBody, , "resultContainer"))
+                page.title = "Election Results"
+                page.description = "<p>Select an election from the menu below to see the results.</p>"
+                page.body = pageBody
                 '
+                returnHtml = CP.Html.div(page.getHtml(CP), , , "afw")
+                Call CP.Doc.AddHeadStyle(page.styleSheet)
             Catch ex As Exception
                 CP.Site.ErrorReport(ex.Message)
             End Try
@@ -120,7 +127,7 @@ Namespace Contensive.Addons.aoVoting
                 Dim sql As String = ""
                 Dim cs As BaseClasses.CPCSBaseClass = CP.CSNew
                 '
-                sql = "select count(ID) as votes FROM votes where (candidateID=" & candidateID & ") and (electionID=" & electionID & ")"
+                sql = "select count(ID) as votes FROM electionVotes where (candidateID=" & candidateID & ") and (electionID=" & electionID & ")"
                 cs.OpenSQL(sql)
                 If cs.OK() Then
                     Return cs.GetInteger("votes")
@@ -130,12 +137,12 @@ Namespace Contensive.Addons.aoVoting
             End Try
         End Function
         '
-        Private Function getVoteCountByWriteIn(ByVal CP As Contensive.BaseClasses.CPBaseClass, ByVal electionID As Integer, ByVal writeIn As String, ByVal votingPositionID As Integer) As Integer
+        Private Function getVoteCountByWriteIn(ByVal CP As Contensive.BaseClasses.CPBaseClass, ByVal electionID As Integer, ByVal writeIn As String, ByVal electionOfficeId As Integer) As Integer
             Try
                 Dim sql As String = ""
                 Dim cs As BaseClasses.CPCSBaseClass = CP.CSNew
                 '
-                sql = "select count(ID) as votes FROM votes where (electionID=" & electionID & ") and (writeIn=" & CP.Db.EncodeSQLText(writeIn) & ") and (votingPositionID=" & votingPositionID & ")"
+                sql = "select count(ID) as votes FROM electionVotes where (electionID=" & electionID & ") and (writeIn=" & CP.Db.EncodeSQLText(writeIn) & ") and (electionOfficeId=" & electionOfficeId & ")"
                 cs.OpenSQL(sql)
                 If cs.OK() Then
                     Return cs.GetInteger("votes")
