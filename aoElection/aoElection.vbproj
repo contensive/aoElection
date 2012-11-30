@@ -41,7 +41,7 @@
   <ItemGroup>
     <Reference Include="adminFramework, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\h\aoAdminFramework\aoAdminFramework\bin\Debug\adminFramework.dll</HintPath>
+      <HintPath>..\..\aoAdminFramework\aoAdminFramework\bin\Debug\adminFramework.dll</HintPath>
     </Reference>
     <Reference Include="CPBase, Version=4.1.2.0, Culture=neutral, PublicKeyToken=10b3c53389b845fb, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

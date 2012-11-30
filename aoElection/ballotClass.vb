@@ -61,15 +61,38 @@ Namespace Contensive.Addons.aoElection
                     electionID = CP.Site.GetInteger(electionKey)
                 End If
                 '
+                If electionID <> 0 Then
+
+                End If
+
                 If Not csElection.Open("elections", "id=" & electionID) Then
                     Call csElection.Close()
                     csElection.Insert("elections")
                     electionID = csElection.GetInteger("id")
-                    Call csElection.SetField("name", "New Election")
+                    Call csElection.SetField("name", "Sample Election #" & electionID)
                     Call csElection.SetField("dateStart", Now)
                     Call csElection.SetField("dateEnd", Now.AddMonths(1))
                     Call csElection.SetField("thankyoucopy", "<p>Thank you for participating.</p>")
                     Call CP.Site.SetProperty(electionKey, electionID)
+                    '
+                    ' Create a sample office
+                    '
+                    Call cs.Insert("election offices")
+                    OfficeID = cs.GetInteger("id")
+                    Call cs.SetField("name", "Sample office for election #" & electionID)
+                    Call cs.SetField("votingInstructions", "Select a candidate and click continue.")
+                    Call cs.Close()
+                    '
+                    ' Create a sample candidate
+                    '
+                    Call cs.Insert("election candidates")
+                    Call cs.SetField("name", "Sample Candidate #" & cs.GetInteger("id"))
+                    Call cs.SetField("electionid", electionID)
+                    Call cs.SetField("officeID", OfficeID)
+                    Call cs.SetField("title", "MBA")
+                    Call cs.SetField("company", "ACME Corporation")
+                    Call cs.SetField("bio", "<p>This is a sample bio. This is a sample bio. This is a sample bio. This is a sample bio. This is a sample bio. </p><p>This is a sample bio. This is a sample bio. This is a sample bio. This is a sample bio. This is a sample bio. </p>")
+                    Call cs.Close()
                 End If
                 If Not csElection.OK() Then
                     returnHtml = getCopyElectionNotFound(CP)
@@ -95,11 +118,19 @@ Namespace Contensive.Addons.aoElection
                         '       when there are none left - the thank you message is displayed
                         '
                         Call getOfficeID(CP, electionID, ballotCount, OfficeID, votingInstructions)
-                        criteria = "(electionID=" & electionID & ") and (OfficeID=" & OfficeID & ")"
                         '
-                        If OfficeID = 0 Then
+                        If OfficeID = -1 Then
+                            '
+                            ' no candidates found
+                            '
+                            returnHtml &= "<p>There are currently no candidates for this election.</p>"
+                        ElseIf OfficeID = 0 Then
+                            '
+                            ' all candidates selected
+                            '
                             returnHtml &= thankyoucopy
                         Else
+                            criteria = "(electionID=" & electionID & ") and (OfficeID=" & OfficeID & ")"
                             cs.Open("Election Candidates", criteria)
                             If cs.OK Then
                                 '
@@ -142,41 +173,41 @@ Namespace Contensive.Addons.aoElection
                         If CP.User.IsAdmin() And (Not isOpen) Then
                             adminHint &= "<p>This election is closed.</p>"
                         End If
+                        End If
                     End If
-                End If
-                csElection.Close()
-                '
-                If CP.User.IsAdmin Then
-                    Dim editList As String = ""
-                    Dim s = CP.Html.SelectContent(rnElectionID, electionID, "elections", "((dateStart is null)or(dateStart<" & sqlRightNow & "))and((dateEnd is null)or(dateend>" & sqlRightNow & "))", "Election created for this page", , "ebSelectElection")
-                    s = CP.Html.Form(s, , , "ebSelectElectionForm")
-                    editList &= CP.Html.li("Select an election " & s, , "ebHelp")
-                    editList &= CP.Html.li("Edit this election " & CP.Content.GetEditLink("elections", electionID, False, "", True), , "ebHelp")
+                    csElection.Close()
                     '
-                    'adminHint &= CP.Html.div("Select an election " & s)
+                    If CP.User.IsAdmin Then
+                        Dim editList As String = ""
+                        Dim s = CP.Html.SelectContent(rnElectionID, electionID, "elections", "((dateStart is null)or(dateStart<" & sqlRightNow & "))and((dateEnd is null)or(dateend>" & sqlRightNow & "))", "Election created for this page", , "ebSelectElection")
+                        s = CP.Html.Form(s, , , "ebSelectElectionForm")
+                        editList &= CP.Html.li("Select an election " & s, , "ebHelp")
+                        editList &= CP.Html.li("Edit this election " & CP.Content.GetEditLink("elections", electionID, False, "", True), , "ebHelp")
+                        '
+                        'adminHint &= CP.Html.div("Select an election " & s)
+                        '
+                        'adminHint &= CP.Html.div("Edit this election " & CP.Content.GetEditLink("elections", electionID, False, "", True))
+                        '
+                        listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("election offices") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Election Offices"" title=""Add or Modify Election Offices"" align=""absmiddle""></a>"
+                        editList &= CP.Html.li("Add or Modify Election Offices" & listLink, , "ebHelp")
+                        'adminHint &= CP.Html.div("Add or Modify Election Office" & listLink)
+                        '
+                        listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("election candidates") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Candidates"" title=""Add or Modify Candidates"" align=""absmiddle""></a>"
+                        editList &= CP.Html.li("Add or Modify Candidates" & listLink, , "ebHelp")
+                        'adminHint &= CP.Html.div("Add or Modify Candidates" & listLink)
+                        '
+                        listLink = "<a href=""" & CP.Site.GetText("adminUrl") & "?addonGuid={BD797028-938B-4E7D-84FE-F42257AEB461}"">Election Reports</a>"
+                        editList &= CP.Html.li("View Election Results " & listLink, , "ebHelp")
+                        'adminHint &= CP.Html.div("View Election Results " & listLink)
+                        '
+                        adminHint &= CP.Html.ul(editList)
+                        adminHint &= adminInstructions
+                        returnHtml &= getAdminHint(CP, adminHint)
+                        'returnHtml &= CP.Html.adminHint(adminHint)
+                    End If
                     '
-                    'adminHint &= CP.Html.div("Edit this election " & CP.Content.GetEditLink("elections", electionID, False, "", True))
+                    returnHtml = CP.Html.div(returnHtml, , "electionBallot")
                     '
-                    listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("election offices") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Election Offices"" title=""Add or Modify Election Offices"" align=""absmiddle""></a>"
-                    editList &= CP.Html.li("Add or Modify Election Offices" & listLink, , "ebHelp")
-                    'adminHint &= CP.Html.div("Add or Modify Election Office" & listLink)
-                    '
-                    listLink = "<a class=""ccRecordEditLink"" tabindex=""-1"" href=""" & CP.Site.GetText("adminUrl") & "?cid=" & CP.Content.GetID("election candidates") & """><img src=""/ccLib/images/IconContentEdit.gif"" border=""0"" alt=""Add or Modify Candidates"" title=""Add or Modify Candidates"" align=""absmiddle""></a>"
-                    editList &= CP.Html.li("Add or Modify Candidates" & listLink, , "ebHelp")
-                    'adminHint &= CP.Html.div("Add or Modify Candidates" & listLink)
-                    '
-                    listLink = "<a href=""" & CP.Site.GetText("adminUrl") & "?addonGuid={BD797028-938B-4E7D-84FE-F42257AEB461}"">Election Reports</a>"
-                    editList &= CP.Html.li("View Election Results " & listLink, , "ebHelp")
-                    'adminHint &= CP.Html.div("View Election Results " & listLink)
-                    '
-                    adminHint &= CP.Html.ul(editList)
-                    adminHint &= adminInstructions
-                    returnHtml &= getAdminHint(CP, adminHint)
-                    'returnHtml &= CP.Html.adminHint(adminHint)
-                End If
-                '
-                returnHtml = CP.Html.div(returnHtml, , "electionBallot")
-                '
             Catch ex As Exception
                 CP.Site.ErrorReport(ex.Message)
             End Try
@@ -296,7 +327,34 @@ Namespace Contensive.Addons.aoElection
                 End If
                 cs.Close()
                 '
-                If officeId <> 0 Then
+                If officeId = 0 Then
+                    '
+                    ' no candidates found, return 0 if done, -1 if no candidates
+                    '
+                    sql = "select c.id" _
+                        & " from electionCandidates c" _
+                        & " left join electionOffices o on o.id=c.officeId" _
+                        & " where (c.electionID=" & electionID & ")" _
+                        & " and(o.id is not null)"
+                    cs.OpenSQL(sql)
+                    If Not cs.OK Then
+                        officeId = -1
+                    End If
+                    cs.Close()
+                    '
+                    ' no candidates found, return 0 if done, -1 if non configured
+                    '
+                    sql = "select c.id" _
+                        & " from electionCandidates c" _
+                        & " left join electionOffices o on o.id=c.officeId" _
+                        & " where (c.electionID=" & electionID & ")" _
+                        & " and(o.id is not null)"
+                    cs.OpenSQL(sql)
+                    If Not cs.OK Then
+                        officeId = -1
+                    End If
+                    cs.Close()
+                Else
                     If cs.Open("election offices", "id=" & officeId) Then
                         votingInstructions = cs.GetText("votingInstructions")
                     End If
