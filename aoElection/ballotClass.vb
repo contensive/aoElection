@@ -19,7 +19,7 @@ Namespace Contensive.Addons.aoElection
                 Dim candidateID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnRow))
                 Dim ballotCount As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnBallotCount))
                 Dim pastOfficeID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnPastOfficeID))
-                Dim writeIn As String = CP.Doc.Var(rnWriteIn)
+                Dim writeIn As String = CP.Doc.Var(rnWriteIn).Trim()
                 Dim errMsg As String = ""
                 Dim electionName As String = ""
                 Dim isOpen As Boolean = False
@@ -370,6 +370,7 @@ Namespace Contensive.Addons.aoElection
         Private Sub processVote(ByVal CP As CPBaseClass, ByVal electionID As Integer, ByVal officeID As Integer, ByVal candidateID As Integer, ByVal writeIn As String)
             Try
                 Dim cs As BaseClasses.CPCSBaseClass = CP.CSNew
+                Dim name As String = ""
                 '
                 cs.Open("Election Votes", "(electionID=" & electionID & ") and (electionOfficeID=" & officeID & ") and (memberID=" & CP.User.Id & ")")
                 If Not cs.OK Then
@@ -383,8 +384,18 @@ Namespace Contensive.Addons.aoElection
                     cs.SetField("writeIn", writeIn)
                     cs.SetField("memberID", CP.User.Id)
                     cs.SetField("visitID", CP.Visit.Id)
-                End If
-                cs.Close()
+                    If (writeIn <> "") Then
+                        name = "vote for write-in candidate '" & writeIn & "'"
+                    Else
+                        name = "vote for candidate '" & CP.Content.GetRecordName("election candidates", candidateID) & "'"
+                    End If
+                    name &= "" _
+                        & ", for office '" & CP.Content.GetRecordName("election offices", officeID) & "'" _
+                        & ", for election '" & CP.Content.GetRecordName("elections", electionID) & "'" _
+                        & ""
+                        cs.SetField("name", name)
+                    End If
+                    cs.Close()
             Catch ex As Exception
                 CP.Site.ErrorReport(ex.Message)
             End Try
@@ -397,9 +408,10 @@ Namespace Contensive.Addons.aoElection
                 Dim enddate As Date = cs.GetDate("dateEnd")
                 Dim currentDate As Date = Date.Now()
                 '
-                If (startDate < #1/1/2000#) And (enddate < #1/1/2000#) Then
-                    returnValid = True
-                ElseIf (currentDate > startDate) And (currentDate < enddate) Then
+                If (startDate < currentDate) And ((enddate < #1/1/2000#) Or (enddate > currentDate)) Then
+                    '
+                    ' start date must be null or past, end date must be null or in the future
+                    '
                     returnValid = True
                 End If
             Catch ex As Exception
