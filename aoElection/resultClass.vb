@@ -79,7 +79,7 @@ Namespace Contensive.Addons.aoElection
                             '
                             sql = "SELECT distinct writeIn "
                             sql += "FROM electionVotes "
-                            sql += "where (candidateID=0) and (electionID=" & electionID & ") and (electionOfficeID=" & officeID & ") "
+                            sql += "where (writein is not null)and(writein<>'')and(candidateID<=0)and(electionID=" & electionID & ") and (electionOfficeID=" & officeID & ") "
                             csWI.OpenSQL(sql)
                             Do While csWI.OK()
                                 '
@@ -93,7 +93,7 @@ Namespace Contensive.Addons.aoElection
                                 '
                                 writeIn = csWI.GetText("writeIn")
                                 '
-                                canS += CP.Html.li(writeIn & " - " & getVoteCountByWriteIn(CP, electionID, writeIn, officeID) & " votes", , rowClass & " round4")
+                                canS += CP.Html.li("Write-In: " & writeIn & " - " & getVoteCountByWriteIn(CP, electionID, writeIn, officeID) & " votes", , rowClass & " round4")
                                 '
                                 csWI.GoNext()
                             Loop
