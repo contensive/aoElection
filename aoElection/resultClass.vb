@@ -75,7 +75,7 @@ Namespace Contensive.Addons.aoElection
                         '
                         If nextOffice <> currentOffice Then
                             '
-                            '   add any write ins
+                            '   add any write-ins
                             '
                             sql = "SELECT distinct writeIn "
                             sql += "FROM electionVotes "

@@ -16,10 +16,10 @@ Namespace Contensive.Addons.aoElection
                 Dim electionID As Integer = 0
                 Dim spElectionID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnElectionID))
                 Dim compatibilityElectionID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(addonArgument_ElectionId))
-                Dim candidateID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnRow))
+                Dim candidateID As Integer = 0
                 Dim ballotCount As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnBallotCount))
                 Dim pastOfficeID As Integer = CP.Utils.EncodeInteger(CP.Doc.Var(rnPastOfficeID))
-                Dim writeIn As String = CP.Doc.Var(rnWriteIn).Trim()
+                Dim writeIn As String = ""
                 Dim errMsg As String = ""
                 Dim electionName As String = ""
                 Dim isOpen As Boolean = False
@@ -107,11 +107,23 @@ Namespace Contensive.Addons.aoElection
                     If (Not isOpen) Then
                         returnHtml = getCopyElectionClosed(CP)
                     Else
-                        If ((candidateID = 0) And (writeIn = "")) And (CP.Doc.Var(rnButton) = btnContinue) Then
-                            ballotCount -= 1
-                            errMsg = "Please select a candidate for this Offices or include a write-in."
-                        ElseIf (CP.Doc.Var(rnButton) = btnContinue) Then
-                            processVote(CP, electionID, pastOfficeID, candidateID, writeIn)
+                        If (CP.Doc.Var(rnButton) = btnContinue) Then
+                            '
+                            ' process button click
+                            '
+                            candidateID = CP.Utils.EncodeInteger(CP.Doc.Var(rnRow))
+                            If candidateID <= 0 Then
+                                writeIn = CP.Doc.Var(rnWriteIn).Trim()
+                            End If
+                            If ((candidateID <= 0) And (writeIn = "")) Then
+                                '
+                                ' no write-in included and no radio selected
+                                '
+                                ballotCount -= 1
+                                errMsg = "Please select a candidate for this Offices or include a write-in."
+                            Else
+                                processVote(CP, electionID, pastOfficeID, candidateID, writeIn)
+                            End If
                         End If
                         '
                         '   the ballot will loop through all the candidates for each Office until there are none left
